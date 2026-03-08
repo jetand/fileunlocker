@@ -1,23 +1,23 @@
-// FileUnlocker.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 #include "pch.h"
 #include <iostream>
 #include <filesystem>
 #include <chrono>
 #include <cstdio>
+#include <vector>
 
 #include <windows.h>
 #include <RestartManager.h>
 
-wchar_t *convertCharArrayToLPCWSTR(const char* charArray)
+#pragma comment(lib, "Rstrtmgr.lib")
+
+static wchar_t *convertCharArrayToLPCWSTR(const char* charArray)
 {
     wchar_t* wString = new wchar_t[4096];
     MultiByteToWideChar(CP_ACP, 0, charArray, -1, wString, 4096);
     return wString;
 }
 
-std::vector<DWORD> getFileLockingProcesses(const std::string& filePath, bool debugMode=false)
+static std::vector<DWORD> getFileLockingProcesses(const std::string& filePath, bool debugMode=false)
 {
     std::vector<DWORD> result;
     DWORD dwSession;
@@ -41,7 +41,7 @@ std::vector<DWORD> getFileLockingProcesses(const std::string& filePath, bool deb
             UINT i;
             UINT nProcInfoNeeded;
             UINT nProcInfo = 10;
-            RM_PROCESS_INFO rgpi[10];
+            RM_PROCESS_INFO rgpi[10] = { 0 };
             dwError = RmGetList(dwSession, &nProcInfoNeeded, &nProcInfo, rgpi, &dwReason);
             if (debugMode)
             {
@@ -93,7 +93,7 @@ std::vector<DWORD> getFileLockingProcesses(const std::string& filePath, bool deb
     return result;
 }
 
-void closeFileLockingProcesses(const std::string& filePath, bool debugMode=false)
+static void closeFileLockingProcesses(const std::string& filePath, bool debugMode=false)
 {
     std::vector<DWORD> lockers = getFileLockingProcesses(filePath, false);
     for (auto id : lockers)
@@ -117,7 +117,7 @@ void closeFileLockingProcesses(const std::string& filePath, bool debugMode=false
     }
 }
 
-void closeLockedFilesRecursive(const std::filesystem::path& path, bool debugMode=false)
+static void closeLockedFilesRecursive(const std::filesystem::path& path, bool debugMode=false)
 {
     std::cout << "Closing processes\r";
     int dots = 0;
@@ -128,7 +128,7 @@ void closeLockedFilesRecursive(const std::filesystem::path& path, bool debugMode
     {
         if (!std::filesystem::is_directory(p))
         {
-            files.push_back(p.path().u8string());
+            files.push_back(p.path().string());
             if (std::chrono::system_clock::now() >= (start + std::chrono::seconds(1)))
             {
                 dots++;
@@ -176,18 +176,8 @@ int main(int argc, const char* argv[])
     }
     closeLockedFilesRecursive(std::string(argv[1]), true);
     std::cout << "Press enter finish\n";
-    std::getchar();
-    //getFileLockingProcesses(std::string(argv[1]), true);
+    (void)std::getchar();
+
     return 0;
 }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
